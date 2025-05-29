@@ -37,9 +37,3 @@ Yksinkertainen RAG (Retrieval-Augmented Generation) ratkaisu Supabase + OpenAI:l
 - Hanki OpenAI API-avain: [platform.openai.com](https://platform.openai.com/api-keys)
 - Luo Supabase projekti: [supabase.com](https://supabase.com)
 - **Muista ajaa `table.sql` ennen ensimmäistä käyttöä!**
-
-## 📝 Huomiot
-
-- Hanki OpenAI API-avain: [platform.openai.com](https://platform.openai.com/api-keys)
-- Luo Supabase projekti: [supabase.com](https://supabase.com)
-- **Muista ajaa `table.sql` ennen ensimmäistä käyttöä!**
