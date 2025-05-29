@@ -1,0 +1,25 @@
+Acme-oy Datalähde: Asiakasrekisteri
+
+Asiakasnumero: 1001
+Nimi: Matti Meikäläinen
+Sähköposti: matti.meikalainen@example.com
+Puhelinnumero: 040-1234567
+Liittymispäivä: 2023-01-15
+
+Asiakasnumero: 1002
+Nimi: Liisa Virtanen
+Sähköposti: liisa.virtanen@example.com
+Puhelinnumero: 050-7654321
+Liittymispäivä: 2023-03-22
+
+Asiakasnumero: 1003
+Nimi: Pekka Korhonen
+Sähköposti: pekka.korhonen@example.com
+Puhelinnumero: 044-5556677
+Liittymispäivä: 2023-05-10
+
+Asiakasnumero: 1004
+Nimi: Anna Nieminen
+Sähköposti: anna.nieminen@example.com
+Puhelinnumero: 041-9876543
+Liittymispäivä: 2023-07-01

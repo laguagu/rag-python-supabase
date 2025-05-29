@@ -2,12 +2,12 @@
 Supabase database configuration and vector store setup
 """
 
+import json
 import logging
 import os
 from typing import Dict, List, Optional
 
 from langchain.schema import Document
-from langchain_community.vectorstores import SupabaseVectorStore
 from langchain_openai import OpenAIEmbeddings
 from supabase import Client, create_client
 
@@ -27,34 +27,29 @@ class SupabaseManager:
 
         self.client: Client = create_client(self.supabase_url, self.supabase_key)
         self.embeddings = OpenAIEmbeddings()
-        self.vector_store = None
-
-    def initialize_vector_store(
-        self, table_name: str = "documents"
-    ) -> SupabaseVectorStore:
-        """Initialize the Supabase vector store"""
-        try:
-            self.vector_store = SupabaseVectorStore(
-                client=self.client,
-                embedding=self.embeddings,
-                table_name=table_name,
-                query_name="match_documents",
-            )
-            logger.info(f"Vector store initialized with table: {table_name}")
-            return self.vector_store
-        except Exception as e:
-            logger.error(f"Failed to initialize vector store: {e}")
-            raise
+        self.table_name = "documents"
 
     def add_documents(self, documents: List[Document]) -> List[str]:
         """Add documents to the vector store"""
-        if not self.vector_store:
-            raise ValueError(
-                "Vector store not initialized. Call initialize_vector_store() first."
-            )
-
         try:
-            ids = self.vector_store.add_documents(documents)
+            ids = []
+            for doc in documents:
+                # Create embedding for the document
+                embedding = self.embeddings.embed_query(doc.page_content)
+                
+                # Prepare document data
+                doc_data = {
+                    "content": doc.page_content,
+                    "metadata": doc.metadata,
+                    "embedding": embedding
+                }
+                
+                # Insert into database
+                result = self.client.table(self.table_name).insert(doc_data).execute()
+                
+                if result.data:
+                    ids.append(str(result.data[0]['id']))
+            
             logger.info(f"Added {len(documents)} documents to vector store")
             return ids
         except Exception as e:
@@ -65,32 +60,65 @@ class SupabaseManager:
         self, query: str, k: int = 4, filter: Optional[Dict] = None
     ) -> List[Document]:
         """Search for similar documents"""
-        if not self.vector_store:
-            raise ValueError(
-                "Vector store not initialized. Call initialize_vector_store() first."
-            )
-
         try:
-            results = self.vector_store.similarity_search(
-                query=query, k=k, filter=filter
-            )
-            logger.info(f"Found {len(results)} similar documents for query")
-            return results
+            # Create embedding for the query
+            query_embedding = self.embeddings.embed_query(query)
+            
+            # Prepare RPC call parameters
+            params = {
+                "query_embedding": query_embedding,
+                "match_count": k
+            }
+            
+            if filter:
+                params["filter"] = filter
+            
+            # Call the match_documents function
+            response = self.client.rpc("match_documents", params).execute()
+            
+            # Convert results to Document objects
+            documents = []
+            for item in response.data:
+                doc = Document(
+                    page_content=item["content"],
+                    metadata=item.get("metadata", {})
+                )
+                documents.append(doc)
+            
+            logger.info(f"Found {len(documents)} similar documents for query")
+            return documents
+            
         except Exception as e:
             logger.error(f"Similarity search failed: {e}")
             raise
 
     def similarity_search_with_score(self, query: str, k: int = 4) -> List[tuple]:
         """Search for similar documents with similarity scores"""
-        if not self.vector_store:
-            raise ValueError(
-                "Vector store not initialized. Call initialize_vector_store() first."
-            )
-
         try:
-            results = self.vector_store.similarity_search_with_score(query=query, k=k)
+            # Create embedding for the query
+            query_embedding = self.embeddings.embed_query(query)
+            
+            # Call the match_documents function
+            params = {
+                "query_embedding": query_embedding,
+                "match_count": k
+            }
+            
+            response = self.client.rpc("match_documents", params).execute()
+            
+            # Convert results to tuples of (Document, score)
+            results = []
+            for item in response.data:
+                doc = Document(
+                    page_content=item["content"],
+                    metadata=item.get("metadata", {})
+                )
+                score = item.get("similarity", 0.0)
+                results.append((doc, score))
+            
             logger.info(f"Found {len(results)} similar documents with scores")
             return results
+            
         except Exception as e:
             logger.error(f"Similarity search with score failed: {e}")
             raise

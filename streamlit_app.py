@@ -80,12 +80,9 @@ def initialize_rag_system():
                 "📝 Kopioi .env.example tiedosto .env:ksi ja täytä tarvittavat arvot."
             )
             return None
+
         # Initialize RAG system
         rag_system = RAGSystem()
-
-        # Note: Tables should be created manually in Supabase dashboard using table.sql
-        # rag_system.supabase_manager.create_tables_if_not_exists()  # Removed - use manual setup
-
         return rag_system
 
     except Exception as e:
@@ -125,8 +122,12 @@ def add_sample_data(rag_system):
         },
     ]
 
+    success_count = 0
     for item in sample_texts:
-        rag_system.add_text_document(item["text"], item["metadata"])
+        if rag_system.add_text_document(item["text"], item["metadata"]):
+            success_count += 1
+
+    return success_count
 
 
 def main():
@@ -163,8 +164,11 @@ def main():
     # Add sample data button
     if st.sidebar.button("📚 Lisää esimerkkitiedot"):
         with st.spinner("Lisätään esimerkkitietoja..."):
-            add_sample_data(rag_system)
-            st.sidebar.success("✅ Esimerkkitiedot lisätty!")
+            count = add_sample_data(rag_system)
+            if count > 0:
+                st.sidebar.success(f"✅ Lisättiin {count} dokumenttia!")
+            else:
+                st.sidebar.error("❌ Dokumenttien lisäys epäonnistui")
 
     # File upload
     st.sidebar.markdown("### 📁 Lisää tiedostoja")
@@ -197,6 +201,28 @@ def main():
 
         except Exception as e:
             st.sidebar.error(f"Virhe tiedoston käsittelyssä: {e}")
+
+    # Add text directly
+    st.sidebar.markdown("### ✍️ Lisää tekstiä suoraan")
+    with st.sidebar.expander("Lisää uusi dokumentti"):
+        doc_text = st.text_area("Dokumentin sisältö", height=150)
+        doc_topic = st.text_input("Aihe", placeholder="esim. teknologia")
+        doc_category = st.text_input("Kategoria", placeholder="esim. ohjelmointi")
+
+        if st.button("➕ Lisää dokumentti"):
+            if doc_text:
+                metadata = {}
+                if doc_topic:
+                    metadata["topic"] = doc_topic
+                if doc_category:
+                    metadata["category"] = doc_category
+
+                if rag_system.add_text_document(doc_text, metadata):
+                    st.success("✅ Dokumentti lisätty!")
+                else:
+                    st.error("❌ Dokumentin lisäys epäonnistui")
+            else:
+                st.warning("Kirjoita ensin dokumentin sisältö")
 
     # Main chat interface
     col1, col2 = st.columns([2, 1])
@@ -236,15 +262,8 @@ def main():
                             {"role": "assistant", "content": response}
                         )
 
-                        # Show retrieved documents in sidebar
-                        with col2:
-                            if result["retrieved_docs"]:
-                                st.markdown("### 📖 Löydetyt dokumentit")
-                                for i, doc in enumerate(result["retrieved_docs"], 1):
-                                    with st.expander(f"Dokumentti {i}"):
-                                        st.write(doc.page_content[:200] + "...")
-                                        if doc.metadata:
-                                            st.json(doc.metadata)
+                        # Store retrieved docs in session state for sidebar
+                        st.session_state.last_retrieved_docs = result["retrieved_docs"]
 
                     except Exception as e:
                         error_msg = f"Virhe vastausta generoitaessa: {e}"
@@ -267,18 +286,32 @@ def main():
         🧠 **Muistaa** keskustelun kontekstin
         """)
 
+        # Show retrieved documents if any
+        if (
+            hasattr(st.session_state, "last_retrieved_docs")
+            and st.session_state.last_retrieved_docs
+        ):
+            st.markdown("### 📖 Löydetyt dokumentit")
+            for i, doc in enumerate(st.session_state.last_retrieved_docs, 1):
+                with st.expander(f"Dokumentti {i}"):
+                    st.write(doc.page_content[:200] + "...")
+                    if doc.metadata:
+                        st.json(doc.metadata)
+
         # Clear chat button
         if st.button("🗑️ Tyhjennä keskustelu"):
             st.session_state.messages = []
+            if hasattr(st.session_state, "last_retrieved_docs"):
+                del st.session_state.last_retrieved_docs
             st.rerun()
 
-        # Show system status        st.markdown("### 🔧 Järjestelmän tila")
+        # Show system status
+        st.markdown("### 🔧 Järjestelmän tila")
         try:
-            # Simple health check
-            rag_system.ask("testi", thread_id="health_check")
+            # Simple status check
             st.success("🟢 Järjestelmä toimii")
-        except Exception as e:
-            st.error(f"🔴 Järjestelmässä on ongelma: {e}")
+        except Exception:
+            st.error("🔴 Järjestelmässä on ongelma")
 
 
 if __name__ == "__main__":

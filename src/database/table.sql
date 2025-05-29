@@ -1,24 +1,27 @@
--- Enable the pgvector extension to work with embedding vectors
+-- 1. Ota pgvector käyttöön
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- Create a table to store your documents
-CREATE TABLE IF NOT EXISTS documents (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    content TEXT, -- corresponds to Document.page_content
-    metadata JSONB, -- corresponds to Document.metadata
-    embedding VECTOR(1536) -- 1536 works for OpenAI embeddings, change if needed
-);
-
--- Drop existing function if it exists (to avoid return type conflicts)
+-- 2. Poista vanha funktio JOS SE ON OLEMASSA
 DROP FUNCTION IF EXISTS match_documents(vector, integer, jsonb);
 
--- Create a function to search for documents
+-- 3. Poista vanha taulu jos on olemassa
+DROP TABLE IF EXISTS documents CASCADE;
+
+-- 4. Luo documents taulu
+CREATE TABLE IF NOT EXISTS documents (
+    id BIGSERIAL PRIMARY KEY,
+    content TEXT,
+    metadata JSONB,
+    embedding VECTOR(1536)
+);
+
+-- 5. Luo match_documents funktio
 CREATE OR REPLACE FUNCTION match_documents (
     query_embedding VECTOR(1536),
     match_count INT DEFAULT NULL,
     filter JSONB DEFAULT '{}'
 ) RETURNS TABLE (
-    id UUID,
+    id BIGINT,
     content TEXT,
     metadata JSONB,
     similarity FLOAT
@@ -34,12 +37,12 @@ BEGIN
         documents.metadata,
         1 - (documents.embedding <=> query_embedding) AS similarity
     FROM documents
-    WHERE documents.metadata @> filter
+    WHERE metadata @> filter
     ORDER BY documents.embedding <=> query_embedding
     LIMIT match_count;
 END;
 $$;
 
--- Create an index for faster similarity search
-CREATE INDEX IF NOT EXISTS documents_embedding_idx ON documents
+-- 6. Luo indeksi
+CREATE INDEX IF NOT EXISTS documents_embedding_idx ON documents 
 USING hnsw (embedding vector_cosine_ops);
