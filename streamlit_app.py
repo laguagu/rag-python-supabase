@@ -181,8 +181,8 @@ def main():
     if uploaded_file and st.sidebar.button("📤 Lataa tiedosto"):
         try:
             # Save uploaded file temporarily
-            temp_path = f"data/{uploaded_file.name}"
-            os.makedirs("data", exist_ok=True)
+            temp_path = f"temp/{uploaded_file.name}"
+            os.makedirs("temp", exist_ok=True)
 
             with open(temp_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
