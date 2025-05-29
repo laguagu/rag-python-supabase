@@ -1,0 +1,19 @@
+[project]
+name = "rag-python-supabase"
+version = "0.1.0"
+description = "RAG solution with Supabase vector database and OpenAI embeddings"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "langchain>=0.1.0",
+    "langchain-openai>=0.1.0",
+    "langchain-community>=0.1.0",
+    "langgraph>=0.1.0",
+    "supabase>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "pgvector>=0.2.0",
+    "psycopg2-binary>=2.9.0",
+    "streamlit>=1.28.0",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0"
+]
